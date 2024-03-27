@@ -88,3 +88,45 @@ exports.getAllBooks = (req, res, next) => {
         }
     );
 };
+
+exports.rateBook = (req, res, next) => {
+    const bookId = req.params.id;
+    const userId = req.body.userId;
+    const rating = parseInt(req.body.rating, 10);
+
+    if (rating < 0 || rating > 5 || isNaN(rating)) {
+        return res.status(400).json({ message: 'La note doit être entre 0 et 5.' });
+    }
+
+    Book.findById(bookId).then(book => {
+        if (!book) {
+            return res.status(404).json({ message: 'Livre non trouvé.' });
+        }
+
+        if (book.ratings.some(r => r.userId.toString() === userId)) {
+            return res.status(400).json({ message: 'Utilisateur a déjà noté ce livre.' });
+        }
+
+        book.ratings.push({ userId, grade: rating });
+
+        book.averageRating = book.ratings.reduce((acc, curr) => acc + curr.grade, 0) / book.ratings.length;
+
+        book.save()
+            .then(updatedBook => res.status(200).json(updatedBook))
+            .catch(error => res.status(400).json({ error }));
+    }).catch(error => res.status(500).json({ error }));
+};
+
+exports.getTopRatedBooks = (req, res, next) => {
+    console.log("Fetching top rated books...");
+    Book.find().sort({ averageRating: -1 }).limit(3)
+        .then(books => {
+            console.log("Books found:", books);
+            res.status(200).json(books);
+        })
+        .catch(error => {
+            console.error("Error fetching top rated books:", error);
+            res.status(500).json({ error });
+        });
+};
+

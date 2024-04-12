@@ -1,4 +1,6 @@
 const multer = require('multer');
+const sharp = require('sharp');
+const fs = require('fs').promises;
 
 const MIME_TYPES = {
     'image/jpg': 'jpg',
@@ -6,6 +8,7 @@ const MIME_TYPES = {
     'image/png': 'png'
 };
 
+// Stockage Multer
 const storage = multer.diskStorage({
     destination: (req, file, callback) => {
         callback(null, 'images');
@@ -13,34 +16,44 @@ const storage = multer.diskStorage({
     filename: (req, file, callback) => {
         const name = file.originalname.split(' ').join('_');
         const extension = MIME_TYPES[file.mimetype];
-        callback(null, name + Date.now() + '.' + extension);
+
+        if (!extension) {
+            return callback(new Error('Type de fichier non supporté'), null);
+        }
+        callback(null, `${name}${Date.now()}.${extension}`);
     }
 });
 
+// Configuration upload
 const upload = multer({ storage: storage }).single('image');
 
+// Optimisation image
 const optimizeImage = async (req, res, next) => {
     if (!req.file) {
         return next();
     }
 
-    try {
-        const imagemin = await import('imagemin');
-        const imageminMozjpeg = await import('imagemin-mozjpeg');
-        const imageminPngquant = await import('imagemin-pngquant');
+    const originalPath = 'images/' + req.file.filename;
+    const outputPath = originalPath.replace(/\.[^/.]+$/, "") + '.optimized.jpeg';
 
-        await imagemin.default(['images/*.{jpg,png}'], {
-            destination: 'images',
-            plugins: [
-                imageminMozjpeg.default({ quality: 75 }),
-                imageminPngquant.default({ quality: [0.6, 0.8] })
-            ]
-        });
+    try {
+        await sharp(originalPath)
+            .resize({ width: 400, height: 600 })
+            .toFormat('jpeg')
+            .jpeg({ quality: 75 })
+            .toFile(outputPath);
+
+        // Suppression image originale après optimisation
+        await fs.unlink(originalPath);
+
+        // Nouvelle image optimisée
+        req.file.path = outputPath;
+        req.file.filename = outputPath.split('/').pop();
 
         next();
     } catch (err) {
         console.error('Error optimizing image:', err);
-        next(err);
+        return next(err);
     }
 };
 

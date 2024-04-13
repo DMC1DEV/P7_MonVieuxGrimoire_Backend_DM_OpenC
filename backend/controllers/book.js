@@ -131,7 +131,6 @@ exports.rateBook = (req, res, next) => {
 };
 
 exports.getTopRatedBooks = (req, res, next) => {
-    console.log("Fetching top rated books...");
     Book.find().sort({ averageRating: -1 }).limit(3)
         .then(books => {
             console.log("Books found:", books);

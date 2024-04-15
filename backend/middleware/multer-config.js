@@ -40,7 +40,7 @@ const optimizeImage = async (req, res, next) => {
         await sharp(originalPath)
             .resize({ width: 400, height: 600 })
             .toFormat('jpeg')
-            .jpeg({ quality: 75 })
+            .jpeg({ quality: 60 })
             .toFile(outputPath);
 
         // Suppression image originale après optimisation
